@@ -25,7 +25,7 @@
 extern char _flash_start, _flash_end;
 
 static const struct flash_dev_drv stm32flash_drv;
-static const struct flash_dev stm32flash = {
+const struct flash_dev stm32flash = {
 	.bdev = NULL,
 	.drv = &stm32flash_drv,
 	.flags = 0,
@@ -157,3 +157,5 @@ static const struct flash_dev_drv stm32_flash_drv = {
 	.flash_program = stm32_flash_program,
 	.flash_copy = stm32_flash_copy,
 };
+
+EMBOX_FLASH_DEV("stm32f4", &stm32_flash_drv, NULL);

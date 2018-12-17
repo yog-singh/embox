@@ -35,15 +35,14 @@ POOL_DEF(uart_ttys, struct tty_uart, MAX_SERIALS);
 extern struct tty_ops uart_tty_ops;
 extern irq_return_t uart_irq_handler(unsigned int irq_nr, void *data);
 
-struct idesc *idesc_serial_create(struct uart *uart,
-		mode_t mod) {
+int idesc_uart_bind(struct uart *uart) {
 	struct tty_uart *tu;
 
 	assert(uart);
 
 	tu = pool_alloc(&uart_ttys);
 	if (!tu) {
-		return err_ptr(ENOMEM);
+		return -ENOMEM;
 	}
 
 	tty_init(&tu->tty, &uart_tty_ops);
@@ -53,9 +52,7 @@ struct idesc *idesc_serial_create(struct uart *uart,
 	uart->tty->idesc = &tu->idesc;
 	uart->irq_handler = uart_irq_handler;
 
-	idesc_init(&tu->idesc, &idesc_serial_ops, mod);
-
-	return &tu->idesc;
+	return 0;
 }
 
 static ssize_t serial_read(struct idesc *idesc, const struct iovec *iov, int cnt) {

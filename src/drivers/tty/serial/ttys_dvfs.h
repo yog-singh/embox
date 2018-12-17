@@ -19,7 +19,8 @@ struct tty_uart {
 
 #include <drivers/char_dev.h>
 #define TTYS_DEF(name, uart) \
-		extern const struct file_operations ttys_fops; \
-		CHAR_DEV_DEF(name, (struct file_operations *)&ttys_fops, NULL, uart)
+		extern int uart_dev_open(struct dev_module *mode, void *dev_priv); \
+		extern const struct idesc_ops idesc_serial_ops; \
+		CHAR_DEV_DEF(name, &idesc_serial_ops, uart_dev_open, uart)
 
 #endif /* TTYS_H_ */

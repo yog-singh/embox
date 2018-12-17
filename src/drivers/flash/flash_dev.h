@@ -55,7 +55,7 @@ static inline int flash_copy(struct flash_dev *dev, uint32_t to, uint32_t from, 
 typedef int (* flash_dev_module_init_ft)(void *args);
 typedef struct flash_dev_module {
 	const char * name;
-	struct flash_dev_drv *dev_drv;
+	const struct flash_dev_drv *dev_drv;
 	const flash_dev_module_init_ft init;
 	void *arg;
 } flash_dev_module_t;

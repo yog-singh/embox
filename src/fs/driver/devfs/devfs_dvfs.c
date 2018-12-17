@@ -18,6 +18,7 @@
 
 #include <util/err.h>
 
+#include <drivers/block_dev/flash/flash_dev.h>
 #include <drivers/char_dev.h>
 #include <drivers/device.h>
 #include <framework/mod/options.h>
@@ -169,6 +170,7 @@ static struct inode *devfs_lookup(char const *name, struct dentry const *dir) {
 }
 
 static int devfs_mount_end(struct super_block *sb) {
+	flash_devs_init();
 	return block_devs_init();
 }
 

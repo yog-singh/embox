@@ -19,4 +19,5 @@ module devfs_dvfs extends devfs {
 	source "devfs_dvfs.c"
 
 	depends embox.driver.char_dev_dvfs
+	depends embox.driver.flash.core
 }

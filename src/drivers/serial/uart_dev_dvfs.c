@@ -160,7 +160,7 @@ int uart_register(struct uart *uart,
 	memcpy(cdev->name, uart->dev_name, sizeof(uart->dev_name));
 	cdev->dev_priv = uart;
 	cdev->device = &tty_device;
-	cdev->dev_file.f_ops = &ttys_fops;
+	cdev->dev_file.f_ops = &char_dev_fops;
 	char_dev_register(cdev);
 
 	return 0;
