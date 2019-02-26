@@ -1,0 +1,22 @@
+#!/usr/bin/expect
+
+source [file join [file dirname [info script]] framework/test_core.exp]
+
+namespace import autotest::*
+
+TEST_SUITE_SETUP
+
+TEST_CASE_TARGET {simple_pjsua connection to sip.linphone.org server} {
+	set TELNET_PROMPT ":/#"
+
+	send "simple_pjsua_imported\r"
+	test_assert_regexp_equal_timeout 20 "registration success, status=200"
+
+	sleep 5
+	# Unregister account
+	send "q\r"
+
+	test_assert_regexp_equal $TELNET_PROMPT
+
+	return 0
+}
