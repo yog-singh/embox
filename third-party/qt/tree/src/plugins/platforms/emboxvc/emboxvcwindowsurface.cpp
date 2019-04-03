@@ -318,7 +318,7 @@ static void __scheduleDevisualization(struct vc *vc) {
 QEmboxVC::QEmboxVC()
     : emboxVCvisualized(0), mouseX(0), mouseY(0)
 {
-	cursor = new QEmboxCursor();
+	cursor = new QEmboxCursor(new QFbScreen());
 
 	mouseHandler = new QEmboxVCMouseHandler();
 	keyboardHandler = new QEmboxVCKeyboardHandler();

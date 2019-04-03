@@ -7,12 +7,14 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "../fb_base/fb_base.h"
+
 QT_BEGIN_NAMESPACE
 
-class QEmboxCursor
+class QEmboxCursor : public QPlatformSoftwareCursor
 {
 public:
-	QEmboxCursor();
+	QEmboxCursor(QFbScreen *s);
     ~QEmboxCursor();
 
 	void emboxCursorRedraw(struct fb_info *fb, int x, int y);

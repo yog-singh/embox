@@ -8,8 +8,8 @@ QT_BEGIN_NAMESPACE
 
 static unsigned char *__calculateCursorLocation(struct fb_info *fb, int x, int y);
 
-QEmboxCursor::QEmboxCursor()
-: mouseX(0), mouseY(0), inited(0)
+QEmboxCursor::QEmboxCursor(QFbScreen *s)
+	: QPlatformSoftwareCursor(s), mouseX(0), mouseY(0), inited(0)
 {
 	cursor.load(QString(":/def_cur.png"));
 	cursor = cursor.convertToFormat(QImage::Format_RGB16);
