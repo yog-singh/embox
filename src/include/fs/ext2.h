@@ -612,8 +612,8 @@ struct ext2_xattr_hdr {
 
 struct nas;
 /* balloc.c */
-extern uint32_t ext2_alloc_block(struct nas *nas, uint32_t goal);
-extern void ext2_free_block(struct nas *nas, uint32_t bit);
+extern uint32_t ext2_alloc_block(struct inode *node, uint32_t goal);
+extern void ext2_free_block(struct inode *node, uint32_t bit);
 
 extern int ext2_read_sector(struct super_block *sb, char *buffer,
 		uint32_t count, uint32_t sector);

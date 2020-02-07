@@ -143,7 +143,7 @@ struct ext4_group_desc *ext4_get_group_desc(unsigned int bnum, struct ext4_fs_in
 	return &fsi->e4fs_gd[bnum];
 }
 
-static uint32_t ext4_alloc_block_bit(struct nas *nas, uint32_t goal) { /* try to allocate near this block */
+static uint32_t ext4_alloc_block_bit(struct inode *node, uint32_t goal) { /* try to allocate near this block */
 	uint32_t block;	/* allocated block */
 	int word;			/* word in block bitmap */
 	uint32_t bit;
@@ -155,8 +155,11 @@ static uint32_t ext4_alloc_block_bit(struct nas *nas, uint32_t goal) { /* try to
 	struct ext4_file_info *fi;
 	struct ext4_fs_info *fsi;
 
-	fi = nas->fi->privdata;
-	fsi = nas->fs->sb_data;
+	struct super_block *sb;
+
+	fi = inode_priv(node);
+	sb = node->i_sb;
+	fsi = sb->sb_data;
 
 	block = EXT4_NO_BLOCK;
 	bit = -1;
@@ -192,7 +195,7 @@ static uint32_t ext4_alloc_block_bit(struct nas *nas, uint32_t goal) { /* try to
 			continue;
 		}
 
-		ext2_read_sector(nas->fs, fi->f_buf, 1, ext4_block_bitmap_len(gd));
+		ext2_read_sector(sb, fi->f_buf, 1, ext4_block_bitmap_len(gd));
 
 		bit = ext4_setbit(b_bitmap(fi->f_buf), fsi->e4sb.s_blocks_per_group, word);
 		if (-1 == bit) {
@@ -210,12 +213,12 @@ static uint32_t ext4_alloc_block_bit(struct nas *nas, uint32_t goal) { /* try to
 			return 0;
 		}
 
-		ext2_write_sector(nas->fs, fi->f_buf, 1, ext4_block_bitmap_len(gd));
+		ext2_write_sector(sb, fi->f_buf, 1, ext4_block_bitmap_len(gd));
 
 		fsi->e4sb.s_free_blocks_count--;
-		ext2_write_sblock(nas->fs);
+		ext2_write_sblock(sb);
 		ext4_inc_lo_hi(gd->free_blocks_count_lo, gd->free_blocks_count_hi);
-		ext2_write_gdblock(nas->fs);
+		ext2_write_gdblock(sb);
 
 		if (update_bsearch && block != -1 && block != EXT4_NO_BLOCK) {
 			/* We searched from the beginning, update bsearch. */
@@ -236,7 +239,7 @@ void ext4_free_block(struct nas *nas, uint32_t bit_returned) {
 	struct ext4_file_info *fi;
 	struct ext4_fs_info *fsi;
 
-	fi = nas->fi->privdata;
+	fi = inode_priv(nas->node);
 	fsi = nas->fs->sb_data;
 
 	if (bit_returned >= fsi->e4sb.s_blocks_count ||
@@ -279,7 +282,7 @@ void ext4_free_block(struct nas *nas, uint32_t bit_returned) {
 	}
 }
 
-uint32_t ext4_alloc_block(struct nas *nas, uint32_t block)
+uint32_t ext4_alloc_block(struct inode *node, uint32_t block)
 {
 	/* Allocate a block for inode. If block is provided, then use it as a goal:
 	* try to allocate this block or his neghbors.
@@ -291,8 +294,8 @@ uint32_t ext4_alloc_block(struct nas *nas, uint32_t block)
 	struct ext4_file_info *fi;
 	struct ext4_fs_info *fsi;
 
-	fi = nas->fi->privdata;
-	fsi = nas->fs->sb_data;
+	fi = inode_priv(node);
+	fsi = node->i_sb->sb_data;
 
 	if (fsi->e4sb.s_free_blocks_count == 0) {
 		return EXT4_NO_BLOCK;
@@ -305,7 +308,7 @@ uint32_t ext4_alloc_block(struct nas *nas, uint32_t block)
 		goal = fsi->e4sb.s_blocks_per_group * group + fsi->e4sb.s_first_data_block;
 	}
 
-	b = ext4_alloc_block_bit(nas, goal);
+	b = ext4_alloc_block_bit(node, goal);
 	if (b != EXT4_NO_BLOCK) {
 		fi->f_bsearch = b;
 	}

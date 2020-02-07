@@ -121,7 +121,7 @@
  */
 
 static int ext4_read_inode(struct nas *nas, uint32_t);
-static int ext4_block_map(struct nas *nas, int32_t, uint32_t *);
+static int ext4_block_map(struct node *inode, int32_t, uint32_t *);
 static int ext4_buf_read_file(struct nas *nas, char **, size_t *);
 static size_t ext4_write_file(struct nas *nas, char *buf_p, size_t size);
 static int ext4_new_block(struct nas *nas, long position);
@@ -182,15 +182,15 @@ static uint64_t ext4_extent_get_block_from_ees(struct ext4_extent *ee,
 
 /* Fetches a block that stores extent info and returns an array of extents
  * _with_ its header. */
-static void *ext4_extent_get_extents_in_block(struct nas *nas, uint32_t block) {
+static void *ext4_extent_get_extents_in_block(struct super_block *sb, uint32_t block) {
 	struct ext4_extent_header eh;
 	void *exts;
 	uint32_t extents_len;
 	struct ext4_fs_info *fsi;
 
-	fsi = nas->fs->sb_data;
+	fsi = sb->sb_data;
 
-	block_dev_read_buffered(nas->fs->bdev, (char*)&eh,
+	block_dev_read_buffered(sb->bdev, (char*)&eh,
 			sizeof(struct ext4_extent_header), block * fsi->s_block_size);
 
 	extents_len = eh.eh_entries * sizeof(struct ext4_extent)
@@ -198,14 +198,14 @@ static void *ext4_extent_get_extents_in_block(struct nas *nas, uint32_t block) {
 
 	exts = sysmalloc(extents_len);
 
-	block_dev_read_buffered(nas->fs->bdev, exts, extents_len,
+	block_dev_read_buffered(sb->bdev, exts, extents_len,
 			block * fsi->s_block_size);
 
 	return exts;
 }
 
 /* Returns the physical block number */
-static uint64_t ext4_extent_get_pblock(struct nas *nas, void *extents, uint32_t lblock,
+static uint64_t ext4_extent_get_pblock(struct super_block *sb, void *extents, uint32_t lblock,
 		uint32_t *len) {
 	struct ext4_extent_header *eh = extents;
 	struct ext4_extent *ee_array;
@@ -233,17 +233,17 @@ static uint64_t ext4_extent_get_pblock(struct nas *nas, void *extents, uint32_t 
 
 		assert(recurse_ei);
 
-		leaf_extents = ext4_extent_get_extents_in_block(nas,
+		leaf_extents = ext4_extent_get_extents_in_block(sb,
 				recurse_ei->ei_leaf_lo);
-		ret = ext4_extent_get_pblock(nas, leaf_extents, lblock, len);
+		ret = ext4_extent_get_pblock(sb, leaf_extents, lblock, len);
 		sysfree(leaf_extents);
 	}
 
 	return ret;
 }
 
-static void ext4_extent_add_block(struct nas *nas, uint32_t lblock, uint64_t pblock) {
-	struct ext4_file_info *fi = nas->fi->privdata;
+static void ext4_extent_add_block(struct inode *node, uint32_t lblock, uint64_t pblock) {
+	struct ext4_file_info *fi = inode_priv(node);
 	void *extents = fi->f_di.i_block;
 	struct ext4_extent_header *eh = extents;
 	struct ext4_extent *ee_array;
@@ -388,7 +388,7 @@ static int ext4_read_symlink(struct nas *nas, uint32_t parent_inumber,
 		memcpy(namebuf, fi->f_di.i_block, link_len);
 	} else {
 		/* Read file for symbolic link */
-		if (0 != (rc = ext4_block_map(nas, (int32_t) 0, &disk_block))) {
+		if (0 != (rc = ext4_block_map(nas->node, (int32_t) 0, &disk_block))) {
 			return rc;
 		}
 		if (1 != ext4_read_sector(nas, fi->f_buf, 1, disk_block)) {
@@ -900,12 +900,12 @@ static int ext4_read_inode(struct nas *nas, uint32_t inumber) {
  * Given an offset in a file, find the disk block number that
  * contains that block.
  */
-static int ext4_block_map(struct nas *nas, int32_t file_block,
+static int ext4_block_map(struct inode *node, int32_t file_block,
 		uint32_t *disk_block_p) {
 	uint32_t len;
-	struct ext4_file_info *fi = nas->fi->privdata;
+	struct ext4_file_info *fi = inode_priv(node);
 
-	*disk_block_p = ext4_extent_get_pblock(nas, fi->f_di.i_block, file_block, &len);
+	*disk_block_p = ext4_extent_get_pblock(node->i_sb, fi->f_di.i_block, file_block, &len);
 
 	return 0;
 }
@@ -932,7 +932,7 @@ static int ext4_buf_read_file(struct nas *nas, char **buf_p, size_t *size_p) {
 
 
 	if (file_block != fi->f_buf_blkno) {
-		if (0 != (rc = ext4_block_map(nas, file_block, &disk_block))) {
+		if (0 != (rc = ext4_block_map(nas->node, file_block, &disk_block))) {
 			return rc;
 		}
 
@@ -995,7 +995,7 @@ static size_t ext4_write_file(struct nas *nas, char *buf, size_t size) {
 	while (1) {
 		file_block = lblkno(fsi, fi->f_pointer);
 
-		if (0 != ext4_block_map(nas, file_block, &disk_block)) {
+		if (0 != ext4_block_map(nas->node, file_block, &disk_block)) {
 			return 0;
 		}
 
@@ -1375,12 +1375,12 @@ static int ext4_new_block(struct nas *nas, long position) {
 	struct ext4_fs_info *fsi;
 	uint32_t b, lblock;
 
-	fi = nas->fi->privdata;
+	fi = inode_priv(nas->node);
 	fsi = nas->fs->sb_data;
 
 	lblock = lblkno(fsi, position);
 
-	if (0 != (rc = ext4_block_map(nas, lblock, &b))) {
+	if (0 != (rc = ext4_block_map(nas->node, lblock, &b))) {
 		return rc;
 	}
 	/* Is another block available? */
@@ -1398,11 +1398,11 @@ static int ext4_new_block(struct nas *nas, long position) {
 			}
 		}
 
-		if (EXT4_NO_BLOCK == (b = ext4_alloc_block(nas, goal))) {
+		if (EXT4_NO_BLOCK == (b = ext4_alloc_block(nas->node, goal))) {
 			return ENOSPC;
 		}
 
-		ext4_extent_add_block(nas, lblock, b);
+		ext4_extent_add_block(nas->node, lblock, b);
 	}
 	return 0;
 }
@@ -1672,7 +1672,7 @@ static int ext4_free_inode(struct nas *nas) { /* ext4_file_info to free */
 
 	/* free all data block of file */
 	for(pos = 0; pos <= ext4_file_size(fi->f_di); pos += fsi->s_block_size) {
-		if (0 != (rc = ext4_block_map(nas, lblkno(fsi, pos), &b))) {
+		if (0 != (rc = ext4_block_map(nas->node, lblkno(fsi, pos), &b))) {
 			return rc;
 		}
 		ext4_free_block(nas, b);
@@ -1834,7 +1834,7 @@ static int ext4_dir_operation(struct nas *nas, char *string, ino_t *numb,
 	}
 
 	for (; pos < ext4_file_size(fi->f_di); pos += fsi->s_block_size) {
-		if (0 != (rc = ext4_block_map(nas, lblkno(fsi, pos), &b))) {
+		if (0 != (rc = ext4_block_map(nas->node, lblkno(fsi, pos), &b))) {
 			return rc;
 		}
 

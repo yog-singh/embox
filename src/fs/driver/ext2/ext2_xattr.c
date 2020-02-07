@@ -131,7 +131,7 @@ static int xattr_block(struct inode *node, struct ext2_xattr_hdr **blk,
 		return res;
 	}
 
-	dinode = node->nas->fi->privdata;
+	dinode = inode_priv(node);
 
 	if (!dinode->i_facl) {
 		return -ENOENT;
@@ -282,30 +282,30 @@ int ext2fs_setxattr(struct inode *node, const char *name, const char *value,
 		size_t len, int flags) {
 	struct ext2_xattr_hdr *xattr_blk = NULL;
 	struct ext2_xattr_ent *xattr_ent, *i_ent;
-	struct ext2fs_dinode *dinode = node->nas->fi->privdata;
+	struct ext2fs_dinode *dinode = inode_priv(node);
 	int xblk_n, min_value_offs = BBSIZE, name_len = strlen(name);
 	int res = 0;
 	struct super_block *sb;
 
 	assert(node->nas);
 
-	sb = node->nas->fs;
+	sb = node->i_sb;
 
 	if (0 != (res = xattr_block(node, &xattr_blk, 1))) {
 		if (res != -ENOENT) {
 			return res;
 		}
 
-		if (NO_BLOCK == (xblk_n = ext2_alloc_block(node->nas, 0))) {
+		if (NO_BLOCK == (xblk_n = ext2_alloc_block(node, 0))) {
 			res = -ENOMEM;
 			goto cleanup_out;
 		}
 
-		if ((res = ext2_write_gdblock(node->nas))) {
+		if ((res = ext2_write_gdblock(sb))) {
 			goto cleanup_out;
 		}
 
-		if ((res = ext2_write_sblock(node->nas))) {
+		if ((res = ext2_write_sblock(sb))) {
 			goto cleanup_out;
 		}
 
@@ -331,7 +331,7 @@ int ext2fs_setxattr(struct inode *node, const char *name, const char *value,
 	if (d2h32(xattr_blk->h_refcount) > 1) {
 		struct ext2_xattr_hdr *blk_copy;
 
-		if (NO_BLOCK == (xblk_n = ext2_alloc_block(node->nas, 0))) {
+		if (NO_BLOCK == (xblk_n = ext2_alloc_block(node, 0))) {
 			res = -ENOMEM;
 			goto cleanup_out;
 		}

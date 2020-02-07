@@ -80,10 +80,8 @@ static int ramfs_create(struct inode *parent_node, struct inode *node) {
 
 static int ramfs_delete(struct inode *node) {
 	struct ramfs_file_info *fi;
-	struct nas *nas;
 
-	nas = node->nas;
-	fi = nas->fi->privdata;
+	fi = inode_priv(node);
 
 	if (!node_is_directory(node)) {
 		index_free(&ramfs_file_idx, fi->index);

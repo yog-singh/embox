@@ -95,7 +95,6 @@ static int fat_create_dir_entry(struct nas *parent_nas,
 		fi->mode         = mode;
 
 		nas = node->nas;
-		nas->fs = parent_nas->fs;
 		nas->fi->privdata = fi;
 		nas->fi->ni.size = fi->filelen;
 
@@ -204,7 +203,7 @@ static int fatfs_create(struct inode *parent_node, struct inode *node) {
 	nas = node->nas;
 	nas->fi->ni.size = 0;
 
-	di = (void *) parent_node->nas->fi->privdata;
+	di = (void *) inode_priv(parent_node);
 
 	if (S_ISDIR(node->i_mode)) {
 		struct dirinfo *new_di;
@@ -239,11 +238,9 @@ static int fatfs_create(struct inode *parent_node, struct inode *node) {
 }
 
 static int fatfs_delete(struct inode *node) {
-	struct nas *nas;
 	struct fat_file_info *fi;
 
-	nas = node->nas;
-	fi = nas->fi->privdata;
+	fi = inode_priv(node);
 
 	if (fat_unlike_file(fi, (uint8_t *) fat_sector_buff)) {
 		return -1;

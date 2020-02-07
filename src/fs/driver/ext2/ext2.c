@@ -266,7 +266,7 @@ static int ext2_read_symlink(struct nas *nas, uint32_t parent_inumber,
 	struct ext2_file_info *fi;
 	struct super_block *sb;
 
-	fi = nas->fi->privdata;
+	fi = inode_priv(nas->node);
 	sb = nas->fs;
 
 	nlinks = 0;
@@ -1574,7 +1574,7 @@ int ext2_write_map(struct nas *nas, long position,
 	/* Is 'position' to be found in the inode itself? */
 	if (block_pos < EXT2_NDIR_BLOCKS) {
 		if (NO_BLOCK != fi->f_di.i_block[block_pos] && (op & WMAP_FREE)) {
-			ext2_free_block(nas, fi->f_di.i_block[block_pos]);
+			ext2_free_block(nas->node, fi->f_di.i_block[block_pos]);
 			fi->f_di.i_block[block_pos] = NO_BLOCK;
 			fi->f_di.i_blocks -= fsi->s_sectors_in_block;
 		}
@@ -1610,7 +1610,7 @@ int ext2_write_map(struct nas *nas, long position,
 			b3 = fi->f_di.i_block[EXT2_TIND_BLOCK];
 			if (NO_BLOCK == b3 && !(op & WMAP_FREE)) {
 				/* Create triple indirect block. */
-				if (NO_BLOCK == (b3 = ext2_alloc_block(nas, fi->f_bsearch))) {
+				if (NO_BLOCK == (b3 = ext2_alloc_block(nas->node, fi->f_bsearch))) {
 					rc = ENOSPC;
 					goto out;
 				}
@@ -1646,7 +1646,7 @@ int ext2_write_map(struct nas *nas, long position,
 
 		if (NO_BLOCK == b2 && !(op & WMAP_FREE)) {
 			/* Create the double indirect block. */
-			if (NO_BLOCK == (b2 = ext2_alloc_block(nas, fi->f_bsearch))) {
+			if (NO_BLOCK == (b2 = ext2_alloc_block(nas->node, fi->f_bsearch))) {
 				rc = ENOSPC;
 				goto out;
 			}
@@ -1694,7 +1694,7 @@ int ext2_write_map(struct nas *nas, long position,
 	 * we're freing (WMAP_FREE).
 	 */
 	if (NO_BLOCK == b1 && !(op & WMAP_FREE)) {
-		if (NO_BLOCK == (b1 = ext2_alloc_block(nas, fi->f_bsearch))) {
+		if (NO_BLOCK == (b1 = ext2_alloc_block(nas->node, fi->f_bsearch))) {
 			/*failed to allocate dblock*/
 			rc = ENOSPC;
 			goto out;
@@ -1726,7 +1726,7 @@ int ext2_write_map(struct nas *nas, long position,
 		}
 		if (op & WMAP_FREE) {
 			if (NO_BLOCK != (old_block = ext2_rd_indir(bp, index1))) {
-				ext2_free_block(nas, old_block);
+				ext2_free_block(nas->node, old_block);
 				fi->f_di.i_blocks -= fsi->s_sectors_in_block;
 				ext2_wr_indir(bp, index1, NO_BLOCK );
 			}
@@ -1735,7 +1735,7 @@ int ext2_write_map(struct nas *nas, long position,
 			 * free the indirect block.
 			 */
 			if (ext2_empty_indir(bp, fsi)) {
-				ext2_free_block(nas, b1);
+				ext2_free_block(nas->node, b1);
 				fi->f_di.i_blocks -= fsi->s_sectors_in_block;
 				b1 = NO_BLOCK;
 				/* Update the reference to the indirect block to
@@ -1764,7 +1764,7 @@ int ext2_write_map(struct nas *nas, long position,
 	 */
 	if (NO_BLOCK == b1 && !single && NO_BLOCK != b2
 			&& ext2_empty_indir(bp_dindir, fsi)) {
-		ext2_free_block(nas, b2);
+		ext2_free_block(nas->node, b2);
 		fi->f_di.i_blocks -= fsi->s_sectors_in_block;
 		b2 = NO_BLOCK;
 		if (triple) {
@@ -1783,7 +1783,7 @@ int ext2_write_map(struct nas *nas, long position,
 	 */
 	if (NO_BLOCK == b2 && triple && NO_BLOCK != b3
 			&& ext2_empty_indir(bp_tindir, fsi)) {
-		ext2_free_block(nas, b3);
+		ext2_free_block(nas->node, b3);
 		fi->f_di.i_blocks -= fsi->s_sectors_in_block;
 		fi->f_di.i_block[EXT2_TIND_BLOCK] = NO_BLOCK;
 	}
@@ -1859,7 +1859,7 @@ static int ext2_new_block(struct nas *nas, long position) {
 			}
 		}
 
-		if (NO_BLOCK == (b = ext2_alloc_block(nas, goal))) {
+		if (NO_BLOCK == (b = ext2_alloc_block(nas->node, goal))) {
 			return ENOSPC;
 		}
 		/* clear new sector */
@@ -1867,7 +1867,7 @@ static int ext2_new_block(struct nas *nas, long position) {
 		ext2_write_sector(nas->fs, fi->f_buf, 1, b);
 
 		if (0 != (rc = ext2_write_map(nas, position, b, 0))) {
-			ext2_free_block(nas, b);
+			ext2_free_block(nas->node, b);
 			return rc;
 		}
 		fi->f_last_pos_bl_alloc = position;
@@ -2153,7 +2153,7 @@ static int ext2_free_inode(struct nas *nas) { /* ext2_file_info to free */
 		if (0 != (rc = ext2_block_map(nas, lblkno(fsi, pos), &b))) {
 			return rc;
 		}
-		ext2_free_block(nas, b);
+		ext2_free_block(nas->node, b);
 	}
 
 	/* clear inode in inode table */

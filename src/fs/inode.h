@@ -54,6 +54,7 @@ struct inode {
 	struct nas            *nas;
 	struct super_block      *i_sb;
 	struct inode_operations *i_ops;
+	struct super_block      *i_sb;
 
 	int                   mounted; /* is mount point*/
 

@@ -74,7 +74,7 @@ static int embox_ntfs_node_create(struct inode *parent_node, struct inode *new_n
 	struct ntfs_file_info *pfi;
 	mode_t mode;
 
-	pfi = parent_node->nas->fi->privdata;
+	pfi = inode_priv(parent_node);
 	pfsi = parent_node->nas->fs->sb_data;
 
 	/* ntfs_mbstoucs(...) will allocate memory for ufilename if it's NULL */
@@ -118,9 +118,9 @@ static int embox_ntfs_node_create(struct inode *parent_node, struct inode *new_n
 		// ToDo: it is not exactly clear what to do in this case - IINM close does fsync.
 		//       most appropriate solution would be to completely unmount file system.
 		int err = errno;
-		ni = ntfs_inode_open(pfsi->ntfs_vol, ((struct ntfs_file_info *)new_node->nas->fi->privdata)->mref);
+		ni = ntfs_inode_open(pfsi->ntfs_vol, ((struct ntfs_file_info *)inode_data(new_node))->mref);
 		ntfs_delete(pfsi->ntfs_vol, NULL, ni, pni, ufilename, ufilename_len);
-		pool_free(&ntfs_file_pool, new_node->nas->fi->privdata);
+		pool_free(&ntfs_file_pool, inode_data(new_node));
                 free(ufilename);
 		errno = err;
 		return -errno;
@@ -145,9 +145,9 @@ static int embox_ntfs_node_delete(struct inode *node) {
 	if (!parent_node) {
 		return -EINVAL;
 	}
-	pfi = parent_node->nas->fi->privdata;
+	pfi = inode_data(parent_node);
 	pfsi = parent_node->nas->fs->sb_data;
-	fi = node->nas->fi->privdata;
+	fi = inode_data(node);
 
 	/* ntfs_mbstoucs(...) will allocate memory for ufilename if it's NULL */
 	ufilename = NULL;
@@ -182,7 +182,7 @@ static int embox_ntfs_node_delete(struct inode *node) {
 
 	free(ufilename);
 
-	pool_free(&ntfs_file_pool, node->nas->fi->privdata);
+	pool_free(&ntfs_file_pool, inode_priv(node));
 	vfs_del_leaf(node);
 
 	if (ntfs_inode_close(pni)) {
@@ -201,7 +201,7 @@ static int embox_ntfs_truncate(struct inode *node, off_t length) {
 	ntfs_attr *attr;
 	int ret;
 
-	fi = node->nas->fi->privdata;
+	fi = inode_priv(node);
 	fsi = node->nas->fs->sb_data;
 
 	ni = ntfs_inode_open(fsi->ntfs_vol, fi->mref);
@@ -334,16 +334,16 @@ static int embox_ntfs_simultaneous_mounting_descend(struct nas *nas, ntfs_inode 
     return -1;
 }
 
-static int ntfs_umount_entry(struct nas *nas) {
+static int ntfs_umount_entry(struct inode *node) {
 	struct inode *child;
 
-	if(node_is_directory(nas->node)) {
-		while(NULL != (child = vfs_subtree_get_child_next(nas->node, NULL))) {
+	if(node_is_directory(node)) {
+		while(NULL != (child = vfs_subtree_get_child_next(node, NULL))) {
 			if(node_is_directory(child)) {
-				ntfs_umount_entry(child->nas);
+				ntfs_umount_entry(nas);
 			}
 
-			pool_free(&ntfs_file_pool, child->nas->fi->privdata);
+			pool_free(&ntfs_file_pool, inode_priv(child);
 			vfs_del_leaf(child);
 		}
 	}
@@ -352,16 +352,16 @@ static int ntfs_umount_entry(struct nas *nas) {
 }
 
 static int embox_ntfs_umount(struct inode *dir) {
-	struct nas *dir_nas;
 	struct ntfs_fs_info *fsi;
+	struct super_block *sb;
 
-	dir_nas = dir->nas;
+	sb = dir->i-sb;
 
 	/* delete all entry node */
-	ntfs_umount_entry(dir_nas);
+	ntfs_umount_entry(dir);
 
-	if(NULL != dir_nas->fs) {
-		fsi = dir_nas->fs->sb_data;
+	if (NULL != sb) {
+		fsi = sb->sb_data;
 
 		if(NULL != fsi) {
 			if (fsi->ntfs_vol) {
@@ -374,8 +374,7 @@ static int embox_ntfs_umount(struct inode *dir) {
 			}
 			pool_free(&ntfs_fs_pool, fsi);
 		}
-		super_block_free(dir_nas->fs);
-		dir_nas->fs = NULL;
+		super_block_free(sb);
 	}
 
 	return 0;
