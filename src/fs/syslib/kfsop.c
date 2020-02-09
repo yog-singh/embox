@@ -237,7 +237,7 @@ int kunlink(const char *pathname) {
 		return -1;
 	}
 
-	/*vfs_del_leaf(node);*/
+	vfs_del_leaf(node);
 
 	return 0;
 
