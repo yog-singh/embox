@@ -142,8 +142,6 @@ struct usb_endp {
 	unsigned short max_packet_size;
 	unsigned char interval;
 
-	struct usb_queue req_queue;
-
 	void *hci_specific;
 };
 
